@@ -79,3 +79,38 @@ CLI equivalents: `--kv-evict-enabled --kv-evict-budget 16 --kv-evict-num-sink-bl
 Based on [vLLM](https://github.com/vllm-project/vllm) `v0.23.0`, Apache-2.0.
 SKIVE modifications by PulkitChatwal. See `LICENSE` (Apache-2.0, retained from
 vLLM) and `NOTICE`.
+
+## KV-eviction metric: `vk_ratio` vs `value_attention`
+
+Two importance metrics decide which block to evict (select via the
+`SKIVE_METRIC` environment variable; vLLM-style env knob):
+
+| `SKIVE_METRIC` | score | notes |
+|---|---|---|
+| `vk_ratio` (default) | `‖V_block‖ / ‖K_block‖` from the cached KV | cheap, no query needed |
+| `value_attention` | `Σ_tok Σ_head softmax(q·k)·‖v‖` (SKIVE's `‖p·v‖₁`, current query) | better accuracy under tight budgets; extra overhead |
+
+```bash
+# enable SKIVE's value x attention metric
+export SKIVE_METRIC=value_attention
+export VLLM_USE_V2_MODEL_RUNNER=0      # eviction is V1-runner only
+```
+
+### Measured: GSM8K accuracy (DeepSeek-R1-Distill-Qwen-1.5B, n=200, max_tokens=1024)
+| Config | KV budget | Accuracy |
+|---|---|---|
+| FullKV | 100% | 54.0% |
+| `vk_ratio` | ~23% | 21.5% |
+| **`value_attention`** | ~23% | **30.5%** |
+| `vk_ratio` | ~45% | 51.0% |
+| **`value_attention`** | ~45% | **53.0%** |
+
+- `value_attention` beats `vk_ratio` at every budget — by **+9 points** when
+  aggressive (~23% budget), and is **near-lossless at ~45%** (53.0 vs 54.0).
+- **Recommendation:** use `value_attention` for accuracy / aggressive budgets;
+  keep `vk_ratio` (default) for lowest overhead.
+- Caveats: validated on one model / one benchmark, `max_tokens=1024` (some CoT
+  truncation), block- (not token-) granularity. Quality only — SKIVE's *speed*
+  claim needs the fused kernel (not implemented here).
+
+See `skive/metric_ab_findings.md` and `skive/gsm8k_eval.py` for details.

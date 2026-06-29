@@ -82,3 +82,63 @@ def score_blocks(
     v_norm = torch.linalg.vector_norm(v_flat, dim=1)
 
     return v_norm / (k_norm + eps)
+
+
+def score_blocks_value_attention(
+    q: torch.Tensor,
+    k_all: torch.Tensor,
+    v_all: torch.Tensor,
+    block_size: int,
+    num_queries_per_kv: int = 1,
+    scale: float | None = None,
+    eps: float = DEFAULT_EPS,
+) -> torch.Tensor:
+    """SKIVE-style value x attention block score for ONE sequence, ONE layer.
+
+    Approximates SKIVE's ``S_i = ||p_i * v_i||_1`` using the *current* decode
+    query (one-shot, since accumulating attention over steps requires the
+    banned per-step GPU->CPU sync). Per token::
+
+        token_score = sum_h  softmax_t(q_h . k_{t,h} * scale)  *  ||v_{t,h}||_1
+
+    and the block score sums token_scores over the block. Lower => evict first.
+
+    Args:
+        q:     current query, shape [num_heads, head_size].
+        k_all: keys for all cached tokens, [num_tokens, num_kv_heads, head_size].
+        v_all: values for all cached tokens, same shape as k_all.
+        block_size: tokens per KV block.
+        num_queries_per_kv: GQA grouping (num_heads // num_kv_heads).
+        scale: attention softmax scale (default 1/sqrt(head_size)).
+    Returns:
+        float32 tensor [num_blocks] (num_blocks = ceil(num_tokens/block_size)).
+    """
+    num_tokens = k_all.shape[0]
+    if num_tokens == 0:
+        return torch.empty(0, dtype=torch.float32, device=k_all.device)
+    num_heads, head_size = q.shape
+    if scale is None:
+        scale = 1.0 / (head_size ** 0.5)
+
+    qf = q.to(torch.float32)
+    kf = k_all.to(torch.float32)
+    vf = v_all.to(torch.float32)
+
+    # Expand each KV head to the query heads it serves (GQA).
+    # k_h: [num_heads, num_tokens, head_size]
+    k_h = kf.permute(1, 0, 2).repeat_interleave(num_queries_per_kv, dim=0)
+    v_h = vf.permute(1, 0, 2).repeat_interleave(num_queries_per_kv, dim=0)
+
+    # logits[h, t] = q_h . k_{t,h} * scale  -> softmax over tokens
+    logits = torch.einsum("hd,htd->ht", qf, k_h) * scale
+    p = torch.softmax(logits, dim=1)                      # [num_heads, num_tokens]
+    v_norm = torch.linalg.vector_norm(v_h, ord=1, dim=2)  # [num_heads, num_tokens]
+    token_score = (p * v_norm).sum(dim=0)                 # [num_tokens]
+
+    num_blocks = -(-num_tokens // block_size)
+    pad = num_blocks * block_size - num_tokens
+    if pad:
+        token_score = torch.cat(
+            [token_score, token_score.new_zeros(pad)]
+        )
+    return token_score.view(num_blocks, block_size).sum(dim=1)

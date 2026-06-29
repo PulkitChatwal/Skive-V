@@ -38,6 +38,7 @@ class EvictionConfig:
     kv_budget: int          # max KV blocks retained per sequence
     num_sink_blocks: int = 0   # first N blocks always kept (attention sinks)
     num_local_blocks: int = 0  # last N blocks always kept (recent window)
+    metric: str = "vk_ratio"   # "vk_ratio" (||V||/||K||) or "value_attention"
 
     def __post_init__(self) -> None:
         if self.block_size <= 0:

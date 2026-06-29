@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import torch
 
+import os
+
 from .manager import EvictionConfig
-from .scoring import DEFAULT_EPS
+from .scoring import DEFAULT_EPS, score_blocks_value_attention
 
 # vLLM's reserved placeholder block (block_pool.py: "placeholder block with
 # block_id=0"). Pointing a block-table entry here frees the real block while
@@ -123,8 +125,50 @@ def build_eviction_config(cache_config) -> EvictionConfig | None:
             kv_budget=int(budget),
             num_sink_blocks=int(getattr(cache_config, "kv_evict_num_sink_blocks", 0)),
             num_local_blocks=int(getattr(cache_config, "kv_evict_num_local_blocks", 0)),
+            metric=os.environ.get("SKIVE_METRIC", "vk_ratio"),
         )
     except ValueError:
+        return None
+
+
+def score_request_blocks_va(model_runner, req_index, real_block_ids,
+                            eps: float = DEFAULT_EPS):
+    """SKIVE-style value x attention score for a request's real blocks,
+    aggregated over layers. Returns a 1-D tensor (len == #real blocks) or None
+    if the per-layer query wasn't captured (caller falls back to vk_ratio)."""
+    try:
+        import torch
+        bs = int(model_runner.cache_config.block_size)
+        q_row = int(model_runner.query_start_loc.np[req_index + 1]) - 1
+        layers = [
+            m for _, m in
+            model_runner.compilation_config.static_forward_context.items()
+            if type(m).__name__ in ("Attention", "MLAAttention")
+        ]
+        kv_caches = model_runner.kv_caches
+        total = None
+        for li, layer in enumerate(layers):
+            q = getattr(layer, "_skive_q", None)
+            if q is None or li >= len(kv_caches):
+                return None
+            kc = kv_caches[li]
+            if kc is None or kc.ndim != 5 or kc.shape[1] != 2:
+                continue
+            dev = kc.device
+            idx = torch.as_tensor(real_block_ids, dtype=torch.long, device=dev)
+            qr = q[q_row].to(dev)                       # [num_heads, head_size]
+            kb = kc[idx, 0]                              # [nb, bs, Hkv, D]
+            vb = kc[idx, 1]
+            nb = kb.shape[0]
+            k_all = kb.reshape(nb * bs, kb.shape[2], kb.shape[3])
+            v_all = vb.reshape(nb * bs, vb.shape[2], vb.shape[3])
+            nqpk = getattr(layer.impl, "num_queries_per_kv",
+                           qr.shape[0] // kb.shape[2])
+            scale = getattr(layer.impl, "scale", None)
+            s = score_blocks_value_attention(qr, k_all, v_all, bs, nqpk, scale, eps)
+            total = s if total is None else total + s
+        return total
+    except Exception:
         return None
 
 
@@ -174,7 +218,13 @@ def evict_request_blocks(
 
     # Score only the real blocks (one .tolist() sync, only when over budget).
     real_block_ids = [block_ids_full[real_pos[k]] for k in range(num_real)]
-    scores = score_request_blocks(model_runner.kv_caches, real_block_ids).tolist()
+    scores = None
+    if getattr(cfg, "metric", "vk_ratio") == "value_attention":
+        sv = score_request_blocks_va(model_runner, req_index, real_block_ids)
+        if sv is not None:
+            scores = sv.tolist()
+    if scores is None:  # default proxy, or fallback if query not captured
+        scores = score_request_blocks(model_runner.kv_caches, real_block_ids).tolist()
 
     # Lowest-importance candidates first (stable on ties via index).
     chosen = sorted(candidates_k, key=lambda k: (scores[k], k))[:num_to_evict]

@@ -65,6 +65,10 @@ from vllm.v1.kv_cache_interface import AttentionSpec
 logger = init_logger(__name__)
 
 
+import os as _skive_os  # SKIVE:
+_SKIVE_CAPTURE_Q = _skive_os.environ.get("SKIVE_METRIC") == "value_attention"
+
+
 class FlashAttentionBackend(AttentionBackend):
     supported_dtypes: ClassVar[list[torch.dtype]] = [torch.float16, torch.bfloat16]
     supported_kv_cache_dtypes: ClassVar[list[CacheDType]] = [
@@ -695,6 +699,9 @@ class FlashAttentionImpl(AttentionImpl):
             "FlashAttention version not detected."
         )
 
+        # SKIVE: capture current query for value x attention eviction scoring.
+        if _SKIVE_CAPTURE_Q:
+            layer._skive_q = query.detach()
         if output_scale is not None or output_block_scale is not None:
             raise NotImplementedError(
                 "fused output quantization is not yet supported for FlashAttentionImpl"
