@@ -11,6 +11,7 @@ memory headroom.
 > at some quality cost. It is **not** a universal upgrade — see *When to use it*.
 
 ## How it works (no kernel changes)
+
 - **Score** each KV block by the proxy `‖V_block‖₂ / ‖K_block‖₂` (aggregated over
   layers) directly from the cache — lower = evict first.
 - **Evict** the lowest-importance non-protected blocks by repointing their block
@@ -22,6 +23,7 @@ memory headroom.
 - All changes are pure Python in `vllm/` + a vendored `vllm/kv_evict/` package.
 
 ## Build (from source)
+
 SKIVE is pure Python, but this is a full vLLM source tree, so it builds like
 upstream vLLM. On a CUDA box:
 
@@ -32,10 +34,12 @@ python use_existing_torch.py                      # build against your torch
 MAX_JOBS=6 TORCH_CUDA_ARCH_LIST="8.9" \
     pip install -e . --no-build-isolation         # set arch to YOUR GPU (8.9 = L4)
 ```
+
 (Build time is dominated by CUDA kernel compilation; limiting `TORCH_CUDA_ARCH_LIST`
 to your GPU's arch keeps it to ~1 hr.)
 
 ## Usage
+
 **Requirement:** eviction hooks live in vLLM's **V1 model runner**, so always set
 `VLLM_USE_V2_MODEL_RUNNER=0` (some architectures, e.g. Llama, default to V2 —
 the engine will *raise loudly* if eviction is enabled on V2).
@@ -55,9 +59,11 @@ llm = LLM(
 )
 print(llm.generate(["Hello"], SamplingParams(max_tokens=64))[0].outputs[0].text)
 ```
+
 CLI equivalents: `--kv-evict-enabled --kv-evict-budget 16 --kv-evict-num-sink-blocks 2 --kv-evict-num-local-blocks 4`.
 
 ## When to use it
+
 - ✅ **You are KV-bound** (long context / high concurrency filling the GPU) and can
   tolerate some quality loss → fits ~3–4× more on the same VRAM; measured
   **+24% to +60% throughput** in a KV-bound benchmark.
@@ -68,6 +74,7 @@ CLI equivalents: `--kv-evict-enabled --kv-evict-budget 16 --kv-evict-num-sink-bl
   never gibberish). Validate on *your* task before relying on it.
 
 ## Status / caveats
+
 - Pinned to vLLM `0.23.0`. The eviction patches are version-specific.
 - Validated on Qwen2.5-0.5B and TinyLlama-1.1B (GQA + a second arch).
 - Prefix caching is supported (shared blocks are ref-counted, not corrupted).
@@ -76,6 +83,7 @@ CLI equivalents: `--kv-evict-enabled --kv-evict-budget 16 --kv-evict-num-sink-bl
   eval — run a real eval for your workload.
 
 ## Attribution & license
+
 Based on [vLLM](https://github.com/vllm-project/vllm) `v0.23.0`, Apache-2.0.
 SKIVE modifications by PulkitChatwal. See `LICENSE` (Apache-2.0, retained from
 vLLM) and `NOTICE`.
@@ -97,6 +105,7 @@ export VLLM_USE_V2_MODEL_RUNNER=0      # eviction is V1-runner only
 ```
 
 ### Measured: GSM8K accuracy (DeepSeek-R1-Distill-Qwen-1.5B, n=200, max_tokens=1024)
+
 | Config | KV budget | Accuracy |
 | --- | --- | --- |
 | FullKV | 100% | 54.0% |

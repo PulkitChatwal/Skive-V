@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """Value-aware KV-block importance scoring (SKIVE proxy metric).
 
 Stage 1 of the integration: a *pure* function, with no GPU and no vLLM
@@ -63,8 +65,7 @@ def score_blocks(
         )
     if k_blocks.ndim < 2:
         raise ValueError(
-            f"expected at least 2 dims (num_blocks, ...), got ndim="
-            f"{k_blocks.ndim}"
+            f"expected at least 2 dims (num_blocks, ...), got ndim={k_blocks.ndim}"
         )
     if not eps > 0:
         raise ValueError(f"eps must be strictly positive, got {eps}")
@@ -118,7 +119,7 @@ def score_blocks_value_attention(
         return torch.empty(0, dtype=torch.float32, device=k_all.device)
     num_heads, head_size = q.shape
     if scale is None:
-        scale = 1.0 / (head_size ** 0.5)
+        scale = 1.0 / (head_size**0.5)
 
     qf = q.to(torch.float32)
     kf = k_all.to(torch.float32)
@@ -131,14 +132,12 @@ def score_blocks_value_attention(
 
     # logits[h, t] = q_h . k_{t,h} * scale  -> softmax over tokens
     logits = torch.einsum("hd,htd->ht", qf, k_h) * scale
-    p = torch.softmax(logits, dim=1)                      # [num_heads, num_tokens]
+    p = torch.softmax(logits, dim=1)  # [num_heads, num_tokens]
     v_norm = torch.linalg.vector_norm(v_h, ord=1, dim=2)  # [num_heads, num_tokens]
-    token_score = (p * v_norm).sum(dim=0)                 # [num_tokens]
+    token_score = (p * v_norm).sum(dim=0)  # [num_tokens]
 
     num_blocks = -(-num_tokens // block_size)
     pad = num_blocks * block_size - num_tokens
     if pad:
-        token_score = torch.cat(
-            [token_score, token_score.new_zeros(pad)]
-        )
+        token_score = torch.cat([token_score, token_score.new_zeros(pad)])
     return token_score.view(num_blocks, block_size).sum(dim=1)

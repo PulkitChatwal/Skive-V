@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """kv_evict: value-aware, block-wise KV-cache eviction for vLLM.
 
 Stage 1 (this commit): pure, GPU-free, vLLM-free scoring primitives.

@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """vLLM-side integration glue for KV-eviction (Stages 4b/4c).
 
 This module is imported *inside* the running vLLM worker process. It must not
@@ -131,18 +133,20 @@ def build_eviction_config(cache_config) -> EvictionConfig | None:
         return None
 
 
-def score_request_blocks_va(model_runner, req_index, real_block_ids,
-                            eps: float = DEFAULT_EPS):
+def score_request_blocks_va(
+    model_runner, req_index, real_block_ids, eps: float = DEFAULT_EPS
+):
     """SKIVE-style value x attention score for a request's real blocks,
     aggregated over layers. Returns a 1-D tensor (len == #real blocks) or None
     if the per-layer query wasn't captured (caller falls back to vk_ratio)."""
     try:
         import torch
+
         bs = int(model_runner.cache_config.block_size)
         q_row = int(model_runner.query_start_loc.np[req_index + 1]) - 1
         layers = [
-            m for _, m in
-            model_runner.compilation_config.static_forward_context.items()
+            m
+            for _, m in model_runner.compilation_config.static_forward_context.items()
             if type(m).__name__ in ("Attention", "MLAAttention")
         ]
         kv_caches = model_runner.kv_caches
@@ -156,14 +160,13 @@ def score_request_blocks_va(model_runner, req_index, real_block_ids,
                 continue
             dev = kc.device
             idx = torch.as_tensor(real_block_ids, dtype=torch.long, device=dev)
-            qr = q[q_row].to(dev)                       # [num_heads, head_size]
-            kb = kc[idx, 0]                              # [nb, bs, Hkv, D]
+            qr = q[q_row].to(dev)  # [num_heads, head_size]
+            kb = kc[idx, 0]  # [nb, bs, Hkv, D]
             vb = kc[idx, 1]
             nb = kb.shape[0]
             k_all = kb.reshape(nb * bs, kb.shape[2], kb.shape[3])
             v_all = vb.reshape(nb * bs, vb.shape[2], vb.shape[3])
-            nqpk = getattr(layer.impl, "num_queries_per_kv",
-                           qr.shape[0] // kb.shape[2])
+            nqpk = getattr(layer.impl, "num_queries_per_kv", qr.shape[0] // kb.shape[2])
             scale = getattr(layer.impl, "scale", None)
             s = score_blocks_value_attention(qr, k_all, v_all, bs, nqpk, scale, eps)
             total = s if total is None else total + s
@@ -262,8 +265,9 @@ def skive_post_step(model_runner) -> None:
     if total:
         c = getattr(model_runner, "_skive_evicted_total", 0) + total
         model_runner._skive_evicted_total = c
-        print(f"[SKIVE 4c] evicted {total} block(s) this step; cumulative={c}",
-              flush=True)
+        print(
+            f"[SKIVE 4c] evicted {total} block(s) this step; cumulative={c}", flush=True
+        )
 
 
 def _skive_pop_pending(worker):
@@ -309,6 +313,9 @@ def skive_reclaim(kv_cache_manager, pending) -> int:
     if freed:
         c = getattr(kv_cache_manager, "_skive_freed_total", 0) + freed
         kv_cache_manager._skive_freed_total = c
-        print(f"[SKIVE 4c-ii] freed {freed} physical block(s); cumulative={c}; "
-              f"pool_free={block_pool.get_num_free_blocks()}", flush=True)
+        print(
+            f"[SKIVE 4c-ii] freed {freed} physical block(s); cumulative={c}; "
+            f"pool_free={block_pool.get_num_free_blocks()}",
+            flush=True,
+        )
     return freed

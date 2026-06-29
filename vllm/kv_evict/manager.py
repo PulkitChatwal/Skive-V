@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """Block-wise KV-eviction policy (Stage 2): isolated, CPU-only, no vLLM.
 
 The manager decides *when* to evict and *which* block to evict, but never
@@ -35,10 +37,10 @@ class EvictionConfig:
     """All knobs are config-driven (project constraint #6)."""
 
     block_size: int
-    kv_budget: int          # max KV blocks retained per sequence
-    num_sink_blocks: int = 0   # first N blocks always kept (attention sinks)
+    kv_budget: int  # max KV blocks retained per sequence
+    num_sink_blocks: int = 0  # first N blocks always kept (attention sinks)
     num_local_blocks: int = 0  # last N blocks always kept (recent window)
-    metric: str = "vk_ratio"   # "vk_ratio" (||V||/||K||) or "value_attention"
+    metric: str = "vk_ratio"  # "vk_ratio" (||V||/||K||) or "value_attention"
 
     def __post_init__(self) -> None:
         if self.block_size <= 0:
@@ -105,9 +107,7 @@ class BlockEvictionManager:
             return False
         return self.num_blocks(seq_id, total_len) > self.config.kv_budget
 
-    def pick_block(
-        self, seq_id: int, total_len: int, scores: Sequence[float]
-    ) -> int:
+    def pick_block(self, seq_id: int, total_len: int, scores: Sequence[float]) -> int:
         """Return the index of the lowest-importance NON-protected block.
 
         ``scores[i]`` is the importance of the i-th currently-held block

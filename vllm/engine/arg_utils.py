@@ -1174,9 +1174,7 @@ class EngineArgs:
         cache_group.add_argument(  # SKIVE:
             "--kv-evict-enabled", **cache_kwargs["kv_evict_enabled"]
         )
-        cache_group.add_argument(
-            "--kv-evict-budget", **cache_kwargs["kv_evict_budget"]
-        )
+        cache_group.add_argument("--kv-evict-budget", **cache_kwargs["kv_evict_budget"])
         cache_group.add_argument(
             "--kv-evict-num-sink-blocks",
             **cache_kwargs["kv_evict_num_sink_blocks"],

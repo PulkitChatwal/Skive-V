@@ -1,6 +1,7 @@
 # Metric evaluation: `vk_ratio` vs SKIVE-style `value_attention`
 
 Two metrics are available (select via `SKIVE_METRIC`):
+
 - `vk_ratio` (default): `‖V_block‖ / ‖K_block‖` from the cached KV. Cheap, no
   query needed.
 - `value_attention` (SKIVE's metric): `Σ_token Σ_head softmax(q·k)·‖v‖` using
@@ -8,6 +9,7 @@ Two metrics are available (select via `SKIVE_METRIC`):
   SKIVE's `‖p·v‖₁`.
 
 ## ⚠️ First A/B was the WRONG test
+
 An initial A/B used **0.5B model + short summarization**, scored by
 **closeness-to-FullKV (mean-LCP)**. That wrongly favored `vk_ratio`
 (0.681 vs 0.580) because (a) the regime wasn't reasoning, and (b) LCP penalizes
@@ -15,10 +17,12 @@ the very divergence SKIVE is *designed* to produce. It does **not** judge SKIVE
 fairly. See the GSM8K results below for the fair test.
 
 ## Fair test: GSM8K accuracy on a reasoning model
+
 DeepSeek-R1-Distill-Qwen-1.5B (Qwen2 arch → V1 runner), accuracy on the GSM8K
 test set, max_tokens=1024, sink=2, local=8. Higher = better.
 
 ### n=200 (confirmed)
+
 | Config | KV budget | Accuracy |
 | --- | --- | --- |
 | FullKV | 100% | 54.0% |
@@ -30,6 +34,7 @@ test set, max_tokens=1024, sink=2, local=8. Higher = better.
 (n=40 earlier run agreed directionally: 40 / 20 / 30 / 50 / 47.5.)
 
 ## Conclusions (corrected & confirmed)
+
 1. **SKIVE's `value_attention` beats the `vk_ratio` proxy at every budget** —
    decisively when aggressive (16: **30.5% vs 21.5%**, +9 pts), marginally at
    moderate (32: 53.0% vs 51.0%). The metric matters most when squeezing hard.
@@ -43,6 +48,7 @@ test set, max_tokens=1024, sink=2, local=8. Higher = better.
    attention recompute at eviction); `vk_ratio` is cheaper.
 
 ## Recommendation
+
 - **For accuracy / aggressive budgets:** use `SKIVE_METRIC=value_attention`
   (clearly better, near-lossless at moderate budgets).
 - **For lowest overhead / non-KV-bound:** keep `vk_ratio` (default).
@@ -51,6 +57,7 @@ test set, max_tokens=1024, sink=2, local=8. Higher = better.
   Directionally strong; broaden models/benchmarks before treating as final.
 
 ## When to use which
+
 - Default stays `vk_ratio` (lower overhead, ties at moderate budgets).
 - Use `SKIVE_METRIC=value_attention` for **aggressive budgets** / reasoning
   workloads, where it clearly helps.
