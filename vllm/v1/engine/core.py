@@ -481,7 +481,11 @@ class EngineCore:
                     _skive_pop_pending, single_value=True
                 )
                 if _skive_pending:
-                    skive_reclaim(self.scheduler.kv_cache_manager, _skive_pending)
+                    sched = self.scheduler
+                    skive_reclaim(
+                        sched.kv_cache_manager,  # type: ignore[attr-defined]
+                        _skive_pending,
+                    )
             except Exception as _skive_e:
                 logger.warning("SKIVE reclaim error: %s", _skive_e)
 
@@ -623,7 +627,11 @@ class EngineCore:
                     _skive_pop_pending, single_value=True
                 )
                 if _skive_pending:
-                    skive_reclaim(self.scheduler.kv_cache_manager, _skive_pending)
+                    sched = self.scheduler
+                    skive_reclaim(
+                        sched.kv_cache_manager,  # type: ignore[attr-defined]
+                        _skive_pending,
+                    )
             except Exception as _skive_e:
                 logger.warning("SKIVE reclaim error: %s", _skive_e)
 
