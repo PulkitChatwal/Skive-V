@@ -10,9 +10,9 @@ WITHOUT mutating anything.
 
 from __future__ import annotations
 
-import torch
-
 import os
+
+import torch
 
 from .manager import EvictionConfig
 from .scoring import DEFAULT_EPS, score_blocks_value_attention

@@ -26,8 +26,8 @@ vLLM each step) rather than tracked statelessly, to avoid hidden-state drift.
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
-from typing import Sequence
+from collections.abc import Sequence
+from dataclasses import dataclass
 
 
 @dataclass
