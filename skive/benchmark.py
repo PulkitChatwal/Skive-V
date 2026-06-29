@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """Stage 6 benchmark: FullKV vs block-wise eviction at matched KV budget.
 
 A 0.5B model on a 23GB L4 is NOT naturally KV-bound, so we create a controlled
@@ -31,7 +33,7 @@ def main():
     ap.add_argument("--budget", type=int, default=16)
     ap.add_argument("--sink", type=int, default=2)
     ap.add_argument("--local", type=int, default=4)
-    ap.add_argument("--blocks", type=int, default=1500)   # KV budget (pressure)
+    ap.add_argument("--blocks", type=int, default=1500)  # KV budget (pressure)
     ap.add_argument("--nreqs", type=int, default=96)
     ap.add_argument("--prompt-len", type=int, default=200)
     ap.add_argument("--gen-len", type=int, default=200)
@@ -39,17 +41,25 @@ def main():
     args = ap.parse_args()
 
     llm = LLM(
-        model=MODEL, dtype="bfloat16", seed=0, enforce_eager=True,
-        enable_prefix_caching=False, gpu_memory_utilization=0.85,
+        model=MODEL,
+        dtype="bfloat16",
+        seed=0,
+        enforce_eager=True,
+        enable_prefix_caching=False,
+        gpu_memory_utilization=0.85,
         max_model_len=args.max_model_len,
         num_gpu_blocks_override=args.blocks,
-        kv_evict_enabled=args.evict, kv_evict_budget=args.budget,
-        kv_evict_num_sink_blocks=args.sink, kv_evict_num_local_blocks=args.local,
+        kv_evict_enabled=args.evict,
+        kv_evict_budget=args.budget,
+        kv_evict_num_sink_blocks=args.sink,
+        kv_evict_num_local_blocks=args.local,
     )
     tok = llm.get_tokenizer()
     # Distinct long prompts (~prompt-len tokens) so KV is not shared.
-    base = ("The history of science and technology spans many centuries and "
-            "countless discoveries across physics, chemistry, biology. ")
+    base = (
+        "The history of science and technology spans many centuries and "
+        "countless discoveries across physics, chemistry, biology. "
+    )
     prompts = []
     for i in range(args.nreqs):
         s = f"Document {i}. " + base * 40
@@ -57,8 +67,12 @@ def main():
         prompts.append(tok.decode(ids))
 
     # Fixed-length generation for a clean throughput measurement.
-    sp = SamplingParams(temperature=0.0, min_tokens=args.gen_len,
-                        max_tokens=args.gen_len, ignore_eos=True)
+    sp = SamplingParams(
+        temperature=0.0,
+        min_tokens=args.gen_len,
+        max_tokens=args.gen_len,
+        ignore_eos=True,
+    )
 
     t0 = time.perf_counter()
     outs = llm.generate(prompts, sp)

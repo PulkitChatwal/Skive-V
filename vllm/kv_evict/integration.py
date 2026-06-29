@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
 """vLLM-side integration glue for KV-eviction (Stages 4b/4c).
 
 This module is imported *inside* the running vLLM worker process. It must not
