@@ -1072,7 +1072,7 @@ urllib3==2.2.3
 uvicorn==0.35.0
     # via gpt-oss
     # via -r requirements/test/cuda.in
-virtualenv==20.31.2
+virtualenv==21.5.1
     # via ray
 vocos==0.1.0
     # via -r requirements/test/cuda.in
