@@ -9,7 +9,10 @@ needs SKIVE_METRIC set before import for the query-capture flag).
 Usage: python gsm8k_eval.py <fullkv|vk_ratio|value_attention> <budget> [n]
 """
 
-import os, re, sys
+import os
+import sys
+
+import regex as re
 
 os.environ.setdefault("VLLM_USE_V2_MODEL_RUNNER", "0")
 from vllm import LLM, SamplingParams
