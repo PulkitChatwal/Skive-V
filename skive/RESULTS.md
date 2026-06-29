@@ -12,7 +12,7 @@ this configuration; throughput + wall time are the reliable signals.
 
 ## A. NOT KV-bound (blocks=1500 → FullKV fits ~60 concurrent)
 | mode | budget | blocks/seq | throughput (tok/s) | elapsed (s) | vs FullKV |
-|------|-------:|-----------:|-------------------:|------------:|----------:|
+| --- | --- | --- | --- | --- | --- |
 | FullKV | — | 25 | **2171** | 8.84 | — |
 | evict | 20 | 20 | 1824 | 10.53 | **−16%** |
 | evict | 13 | 13 | 2008 | 9.56 | −8% |
@@ -24,7 +24,7 @@ no concurrency benefit to offset it. There is no free lunch here.
 
 ## B. KV-bound (blocks=384 → FullKV fits only ~15 concurrent)
 | mode | budget | blocks/seq | throughput (tok/s) | elapsed (s) | vs FullKV |
-|------|-------:|-----------:|-------------------:|------------:|----------:|
+| --- | --- | --- | --- | --- | --- |
 | FullKV | — | 25 | 834 | 23.03 | — |
 | evict | 8 | 8 | **1038** | 18.50 | **+24%** |
 | evict | 6 | 6 | **1332** | 14.41 | **+60%** |
