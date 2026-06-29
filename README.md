@@ -86,7 +86,7 @@ Two importance metrics decide which block to evict (select via the
 `SKIVE_METRIC` environment variable; vLLM-style env knob):
 
 | `SKIVE_METRIC` | score | notes |
-|---|---|---|
+| --- | --- | --- |
 | `vk_ratio` (default) | `‖V_block‖ / ‖K_block‖` from the cached KV | cheap, no query needed |
 | `value_attention` | `Σ_tok Σ_head softmax(q·k)·‖v‖` (SKIVE's `‖p·v‖₁`, current query) | better accuracy under tight budgets; extra overhead |
 
@@ -98,7 +98,7 @@ export VLLM_USE_V2_MODEL_RUNNER=0      # eviction is V1-runner only
 
 ### Measured: GSM8K accuracy (DeepSeek-R1-Distill-Qwen-1.5B, n=200, max_tokens=1024)
 | Config | KV budget | Accuracy |
-|---|---|---|
+| --- | --- | --- |
 | FullKV | 100% | 54.0% |
 | `vk_ratio` | ~23% | 21.5% |
 | **`value_attention`** | ~23% | **30.5%** |

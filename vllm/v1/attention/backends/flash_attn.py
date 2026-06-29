@@ -3,6 +3,7 @@
 """Attention layer with FlashAttention."""
 
 import copy
+import os
 from dataclasses import dataclass
 from typing import ClassVar
 
@@ -65,8 +66,7 @@ from vllm.v1.kv_cache_interface import AttentionSpec
 logger = init_logger(__name__)
 
 
-import os as _skive_os  # SKIVE:
-_SKIVE_CAPTURE_Q = _skive_os.environ.get("SKIVE_METRIC") == "value_attention"
+_SKIVE_CAPTURE_Q = os.environ.get("SKIVE_METRIC") == "value_attention"  # SKIVE:
 
 
 class FlashAttentionBackend(AttentionBackend):

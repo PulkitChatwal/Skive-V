@@ -20,7 +20,7 @@ test set, max_tokens=1024, sink=2, local=8. Higher = better.
 
 ### n=200 (confirmed)
 | Config | KV budget | Accuracy |
-|---|---|---|
+| --- | --- | --- |
 | FullKV | 100% | 54.0% |
 | vk_ratio | 16 (~23%) | 21.5% |
 | **value_attention (SKIVE)** | 16 (~23%) | **30.5%** |
@@ -50,7 +50,7 @@ test set, max_tokens=1024, sink=2, local=8. Higher = better.
   max_tokens=1024 (some CoT truncation), block- (not token-) granularity.
   Directionally strong; broaden models/benchmarks before treating as final.
 
-## Recommendation
+## When to use which
 - Default stays `vk_ratio` (lower overhead, ties at moderate budgets).
 - Use `SKIVE_METRIC=value_attention` for **aggressive budgets** / reasoning
   workloads, where it clearly helps.
